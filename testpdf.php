@@ -120,7 +120,7 @@ function build_tech_skills( $c ) {
 function build_resume($c, $tech_skills) {
 	$pdf = new PDF();
 	
-	$pdf->SetTitle($c->person->personFormattedName);
+	$pdf->SetTitle($c->person->formattedName);
 	$pdf->SetMargins(0, 0, 0);
 	$pdf->SetAutoPageBreak(true, 10);
 	$pdf->AddFont('Signika', '', 'signika.php');
@@ -133,7 +133,7 @@ function build_resume($c, $tech_skills) {
 	
 	// calc Name length
 	$pdf->SetFont(LABEL_FONT, 'BI', 22);
-	$nameWidth = $pdf->GetStringWidth($c->person->personFormattedName);
+	$nameWidth = $pdf->GetStringWidth($c->person->formattedName);
 	
 	// calc Title length
 	$pdf->SetFont('Arial', '', 16);
@@ -155,7 +155,7 @@ function build_resume($c, $tech_skills) {
 	$leftMargin = ($pdf->GetPageWidth() - ($nameWidth + $titleWidth + $imageWidth + 12)) / 2;
 		
 	$pdf->SetFont(LABEL_FONT, 'BI', 22);
-	$pdf->Cell($nameWidth + $leftMargin,16,$c->person->personFormattedName, 0, 0, 'R', false);
+	$pdf->Cell($nameWidth + $leftMargin,16,$c->person->formattedName, 0, 0, 'R', false);
 	$pdf->Cell(12,16,'', 0, 0, '', false);
 	$pdf->SetFont('Arial', '', 16);
 	$pdf->Cell($titleWidth + 4,16,$c->jobs[0]->jobTitle, 0, 0, 'L', false);

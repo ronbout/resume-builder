@@ -70,7 +70,7 @@ function build_resume( $c, $tech_skills ) {
 				<div class="grey-bar"></div>
 				<div id="resume-header-container">
 					<span id="resume-header">
-						<span id="header-name"><?php echo $c->person->personFormattedName; ?></span>
+						<span id="header-name"><?php echo $c->person->formattedName; ?></span>
 						<span id="header-title"><?php echo $c->jobs[0]->jobTitle; ?></span>
 						<?php
 							if (property_exists($c, 'certifications')) {
