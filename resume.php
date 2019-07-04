@@ -24,7 +24,7 @@ set_time_limit(10 * 60);
 $id = ( isset($_GET['id']) && $_GET['id'] ) ? $_GET['id'] : 7;
 
 //$url = "http://www.ronboutilier.com/api/candidates/$id?api_cc=three&api_key=fj49fk390gfk3f50";
-$url = "http://localhost/3sixd/api/candidates/$id?api_cc=three&api_key=fj49fk390gfk3f50";
+$url = "http://13.90.143.153/3sixd/api/candidates/$id?api_cc=three&api_key=fj49fk390gfk3f50";
 
 $ret = curl_load_file($url, array(), 'GET');
 
