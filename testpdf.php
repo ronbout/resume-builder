@@ -41,8 +41,8 @@ build_resume($candidate, $tech_skills);
 function get_candidate() {
 	// get id from GET if present, otherwise use 7 as default for practice
 	$id = ( isset($_GET['id']) && $_GET['id'] ) ? $_GET['id'] : 7;
-	//$url = "http://www.ronboutilier.com/api/candidates/$id?api_cc=three&api_key=fj49fk390gfk3f50";
-	$url = "http://13.90.143.153/3sixd/api/candidates/$id?api_cc=three&api_key=fj49fk390gfk3f50";
+	//$url = "http://13.90.143.153/3sixd/api/candidates/$id?api_cc=three&api_key=fj49fk390gfk3f50";
+	$url = "http://localhost/3sixd/api/candidates/$id?api_cc=three&api_key=fj49fk390gfk3f50";
 	$ret = curl_load_file($url, array(), 'GET');
 	
 	// echo  var_dump($ret);
@@ -102,15 +102,15 @@ function build_tech_skills( $c ) {
 	// in the Technical Skills section
 	$tech_skills = array();
 
-	foreach ( $c->jobs as $job ) {
-		foreach ( $job->jobSkills as $jobSkill ) {
-			if ( ! array_key_exists($jobSkill->skillTags, $tech_skills) ) {
-				$tech_skills[$jobSkill->skillTags] = array('name' => $jobSkill->skillTagNames,
+	foreach ( $c->experience as $job ) {
+		foreach ( $job->skills as $jobSkill ) {
+			if ( ! array_key_exists($jobSkill->skillTag, $tech_skills) ) {
+				$tech_skills[$jobSkill->skillTag] = array('name' => $jobSkill->skillTagName,
 						'skills' => array());
 			}
 			// add the skill to the tag, if not there already
-			if ( ! array_search($jobSkill->skillName, $tech_skills[$jobSkill->skillTags]['skills']) ) {
-				$tech_skills[$jobSkill->skillTags]['skills'][] = $jobSkill->skillName;
+			if ( ! array_search($jobSkill->name, $tech_skills[$jobSkill->skillTag]['skills']) ) {
+				$tech_skills[$jobSkill->skillTag]['skills'][] = $jobSkill->name;
 			}
 		}
 	}
@@ -137,7 +137,7 @@ function build_resume($c, $tech_skills) {
 	
 	// calc Title length
 	$pdf->SetFont('Arial', '', 16);
-	$titleWidth = $pdf->GetStringWidth($c->jobs[0]->jobTitle);
+	$titleWidth = $pdf->GetStringWidth($c->experience[0]->jobTitle);
 	
 	// determine number of cert images
 	$imgCnt = 0;
@@ -158,7 +158,7 @@ function build_resume($c, $tech_skills) {
 	$pdf->Cell($nameWidth + $leftMargin,16,$c->person->formattedName, 0, 0, 'R', false);
 	$pdf->Cell(12,16,'', 0, 0, '', false);
 	$pdf->SetFont('Arial', '', 16);
-	$pdf->Cell($titleWidth + 4,16,$c->jobs[0]->jobTitle, 0, 0, 'L', false);
+	$pdf->Cell($titleWidth + 4,16,$c->experience[0]->jobTitle, 0, 0, 'L', false);
 	
 	// certificate images, if any
 	// max of 2 images
@@ -227,7 +227,7 @@ function build_resume($c, $tech_skills) {
 	
 	$pdf->SetXY($xPos, $tmpY);
 	
-	foreach( $c->jobs as $job ) {
+	foreach( $c->experience as $job ) {
 		display_job( $job, $pdf, $xPos );
 	}
 	
@@ -281,7 +281,7 @@ function display_job( $job, $pdf, $xPos ) {
 	$pdf->SetX( $xPos );
 	$pdf->SetTextColor(0);
 	$pdf->SetFont(LABEL_FONT, '', LABEL_SIZE);
-	$pdf->Cell(110, LN_HEIGHT, build_job_loc($job));
+	$pdf->Cell(110, LN_HEIGHT, build_job_loc($job->company));
 	
 	$pdf->SetTextColor(255);
 	$pdf->SetFillColor(255, 0, 0);
@@ -321,7 +321,7 @@ function display_job( $job, $pdf, $xPos ) {
 }
 
 function build_job_environment( $job ) {
-	$skills = array_column($job->jobSkills, 'skillName');
+	$skills = array_column($job->skills, 'name');
 	return implode(', ', $skills);
 }
 

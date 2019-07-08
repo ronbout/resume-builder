@@ -23,8 +23,8 @@ set_time_limit(10 * 60);
 
 $id = ( isset($_GET['id']) && $_GET['id'] ) ? $_GET['id'] : 7;
 
-//$url = "http://www.ronboutilier.com/api/candidates/$id?api_cc=three&api_key=fj49fk390gfk3f50";
-$url = "http://13.90.143.153/3sixd/api/candidates/$id?api_cc=three&api_key=fj49fk390gfk3f50";
+//$url = "http://13.90.143.153/3sixd/api/candidates/$id?api_cc=three&api_key=fj49fk390gfk3f50";
+$url = "http://localhost/3sixd/api/candidates/$id?api_cc=three&api_key=fj49fk390gfk3f50";
 
 $ret = curl_load_file($url, array(), 'GET');
 
@@ -45,15 +45,15 @@ function build_tech_skills( $c ) {
 	// in the Technical Skills section
 	$tech_skills = array();
 	
-	foreach ( $c->jobs as $job ) {
-		foreach ( $job->jobSkills as $jobSkill ) {
-			if ( ! array_key_exists($jobSkill->skillTags, $tech_skills) ) {
-				$tech_skills[$jobSkill->skillTags] = array('name' => $jobSkill->skillTagNames, 
+	foreach ( $c->experience as $job ) {
+		foreach ( $job->skills as $jobSkill ) {
+			if ( ! array_key_exists($jobSkill->skillTag, $tech_skills) ) {
+				$tech_skills[$jobSkill->skillTag] = array('name' => $jobSkill->skillTagName, 
 															'skills' => array());
 			}
 			// add the skill to the tag, if not there already
-			if ( ! array_search($jobSkill->skillName, $tech_skills[$jobSkill->skillTags]['skills']) ) {
-				$tech_skills[$jobSkill->skillTags]['skills'][] = $jobSkill->skillName;
+			if ( ! array_search($jobSkill->name, $tech_skills[$jobSkill->skillTag]['skills']) ) {
+				$tech_skills[$jobSkill->skillTag]['skills'][] = $jobSkill->name;
 			}
 		}
 	}
@@ -71,7 +71,7 @@ function build_resume( $c, $tech_skills ) {
 				<div id="resume-header-container">
 					<span id="resume-header">
 						<span id="header-name"><?php echo $c->person->formattedName; ?></span>
-						<span id="header-title"><?php echo $c->jobs[0]->jobTitle; ?></span>
+						<span id="header-title"><?php echo $c->experience[0]->jobTitle; ?></span>
 						<?php
 							if (property_exists($c, 'certifications')) {
 								foreach ( $c->certifications as $cert ) {
@@ -120,7 +120,7 @@ function build_resume( $c, $tech_skills ) {
 					</div>
 					<div class="col-md-9" id="job-list">
 						<?php 
-							foreach( $c->jobs as $job ) {
+							foreach( $c->experience as $job ) {
 								display_job( $job );
 							}
 						?>
@@ -170,7 +170,7 @@ function display_job( $job ) {
 	?>
 	<div class="job-title"><?php echo $job->jobTitle; ?></div>
 	<div class="job-location-dates">
-		<span class="job-location"><?php echo build_job_loc($job); ?></span>
+		<span class="job-location"><?php echo build_job_loc($job->company); ?></span>
 		<span class="job-dates"><?php echo build_job_dates($job); ?></span>
 	</div>
 	<div class="job-highlight-title">Responsibilities & Achievements</div>
@@ -200,7 +200,7 @@ function display_job( $job ) {
 }
 
 function build_job_environment( $job ) {
-	$skills = array_column($job->jobSkills, 'skillName');
+	$skills = array_column($job->skills, 'name');
 	return implode(', ', $skills);
 }
 
