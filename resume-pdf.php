@@ -182,7 +182,7 @@ function build_resume($c, $tech_skills)
 	if (property_exists($c, 'certifications')) {
 		foreach ($c->certifications as $cert) {
 			if ($imgCnt < 2 && property_exists($cert, 'certificateImage')) {
-				$pdf->Image('images\\' . $cert->certificateImage, $tmpX, $tmpY, IMAGE_SIZE);
+				$pdf->Image('images/' . $cert->certificateImage, $tmpX, $tmpY, IMAGE_SIZE);
 				$imgCnt++;
 				$tmpX += IMAGE_SIZE + 2;
 			}
