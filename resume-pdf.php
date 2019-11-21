@@ -50,8 +50,8 @@ build_resume($candidate, $tech_skills);
 
 function get_candidate($id)
 {
-	//$url = "http://13.90.143.153/3sixd/api/candidates/$id?api_cc=three&api_key=fj49fk390gfk3f50";
-	$url = "http://localhost/3sixd/api/candidates/$id?api_cc=three&api_key=fj49fk390gfk3f50";
+	$url = "http://13.90.143.153/3sixd/api/candidates/$id?api_cc=three&api_key=fj49fk390gfk3f50";
+	//$url = "http://localhost/3sixd/api/candidates/$id?api_cc=three&api_key=fj49fk390gfk3f50";
 	$ret = curl_load_file($url, array(), 'GET');
 
 	// echo  var_dump($ret);
@@ -66,8 +66,8 @@ function get_candidate($id)
 
 function get_candidate_skills($id)
 {
-	//$url = "http://13.90.143.153/3sixd/api/candidate_skills/candidate_id/$id?api_cc=three&api_key=fj49fk390gfk3f50";
-	$url = "http://localhost/3sixd/api/candidate_skills/candidate_id/$id?api_cc=three&api_key=fj49fk390gfk3f50";
+	$url = "http://13.90.143.153/3sixd/api/candidate_skills/candidate_id/$id?api_cc=three&api_key=fj49fk390gfk3f50";
+	//$url = "http://localhost/3sixd/api/candidate_skills/candidate_id/$id?api_cc=three&api_key=fj49fk390gfk3f50";
 	$ret = curl_load_file($url, array(), 'GET');
 
 	// echo  var_dump($ret);
