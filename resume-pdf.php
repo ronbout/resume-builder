@@ -3,6 +3,11 @@
 // for some reason, incorrectly getting a DEPRECATED error for FPDF construct
 // it CORRECTLY uses __construct, but gets error that it is using function FPDF()
 
+function prop_has_value($obj, $prop)
+{
+	return property_exists($obj, $prop) && $obj->$prop;
+}
+
 error_reporting(~E_DEPRECATED);
 
 set_time_limit(10 * 60);
@@ -14,10 +19,13 @@ define('LABEL_SIZE', 14);
 
 require('fpdf2/fpdf_mc_table.php');
 
-// first retrieve the api info for the candidate
-$candidate = get_candidate();
+// get id from GET if present, otherwise use 7 as default for practice
+$id = (isset($_GET['id']) && $_GET['id'] && $_GET['id'] !== 'undefined') ? $_GET['id'] : 7;
 
-$tech_skills = build_tech_skills($candidate);
+// first retrieve the api info for the candidate
+$candidate = get_candidate($id);
+// the skills listing is a separate api call
+$tech_skills = build_tech_skills($id);
 
 // have to extend the fpdf class for the header functionality
 
@@ -40,12 +48,26 @@ build_resume($candidate, $tech_skills);
 
 //****************************************************
 
-function get_candidate()
+function get_candidate($id)
 {
-	// get id from GET if present, otherwise use 7 as default for practice
-	$id = (isset($_GET['id']) && $_GET['id'] && $_GET['id'] !== 'undefined') ? $_GET['id'] : 7;
-	$url = "http://13.90.143.153/3sixd/api/candidates/$id?api_cc=three&api_key=fj49fk390gfk3f50";
-	//$url = "http://localhost/3sixd/api/candidates/$id?api_cc=three&api_key=fj49fk390gfk3f50";
+	//$url = "http://13.90.143.153/3sixd/api/candidates/$id?api_cc=three&api_key=fj49fk390gfk3f50";
+	$url = "http://localhost/3sixd/api/candidates/$id?api_cc=three&api_key=fj49fk390gfk3f50";
+	$ret = curl_load_file($url, array(), 'GET');
+
+	// echo  var_dump($ret);
+
+	$tmp = json_decode($ret);
+	if (!property_exists($tmp, 'data')) {
+		echo 'That candidate could not be found';
+		die();
+	}
+	return $tmp->data;
+}
+
+function get_candidate_skills($id)
+{
+	//$url = "http://13.90.143.153/3sixd/api/candidate_skills/candidate_id/$id?api_cc=three&api_key=fj49fk390gfk3f50";
+	$url = "http://localhost/3sixd/api/candidate_skills/candidate_id/$id?api_cc=three&api_key=fj49fk390gfk3f50";
 	$ret = curl_load_file($url, array(), 'GET');
 
 	// echo  var_dump($ret);
@@ -105,24 +127,32 @@ function curl_load_file($url, $post_string = null, $request_type = 'POST')
 	return $output;
 }
 
-function build_tech_skills($c)
+function build_tech_skills($id)
 {
+
+	$cand_skills = get_candidate_skills(($id));
 	// build the list of skills, grouped by tags for display
 	// in the Technical Skills section
-	$tech_skills = array();
 
-	foreach ($c->experience as $job) {
-		foreach ($job->skills as $jobSkill) {
-			if (!array_key_exists($jobSkill->techtagId, $tech_skills)) {
-				$tech_skills[$jobSkill->techtagId] = array(
-					'name' => $jobSkill->techtagName,
-					'skills' => array()
-				);
-			}
-			// add the skill to the tag, if not there already
-			if (!array_search($jobSkill->name, $tech_skills[$jobSkill->techtagId]['skills'])) {
-				$tech_skills[$jobSkill->techtagId]['skills'][] = $jobSkill->name;
-			}
+	$tech_skills = array();
+	/**
+	 * 
+	 * loop through cand skills building $tech skills like below
+	 * 
+	 * 
+	 */
+
+	foreach ($cand_skills->skills as $cSkill) {
+		if (!$cSkill->resumeTechtagId) continue;
+		if (!array_key_exists($cSkill->resumeTechtagId, $tech_skills)) {
+			$tech_skills[$cSkill->resumeTechtagId] = array(
+				'name' => $cSkill->resumeTechtagName,
+				'skills' => array()
+			);
+		}
+		// add the skill to the tag, if not there already
+		if (!array_search($cSkill->skillName, $tech_skills[$cSkill->resumeTechtagId]['skills'])) {
+			$tech_skills[$cSkill->resumeTechtagId]['skills'][] = $cSkill->skillName;
 		}
 	}
 	return $tech_skills;
@@ -153,9 +183,9 @@ function build_resume($c, $tech_skills)
 
 	// determine number of cert images
 	$imgCnt = 0;
-	if (property_exists($c, 'certifications')) {
+	if (prop_has_value($c, 'certifications')) {
 		foreach ($c->certifications as $cert) {
-			if ($imgCnt < 2 && property_exists($cert, 'certificateImage')) {
+			if ($imgCnt < 2 && prop_has_value($cert, 'certificateImage')) {
 				$imgCnt++;
 			}
 		}
@@ -179,9 +209,9 @@ function build_resume($c, $tech_skills)
 
 	$imgCnt = 0;
 
-	if (property_exists($c, 'certifications')) {
+	if (prop_has_value($c, 'certifications')) {
 		foreach ($c->certifications as $cert) {
-			if ($imgCnt < 2 && property_exists($cert, 'certificateImage')) {
+			if ($imgCnt < 2 && prop_has_value($cert, 'certificateImage')) {
 				$pdf->Image('images/' . $cert->certificateImage, $tmpX, $tmpY, IMAGE_SIZE);
 				$imgCnt++;
 				$tmpX += IMAGE_SIZE + 2;
@@ -244,7 +274,7 @@ function build_resume($c, $tech_skills)
 	}
 
 	// Education & Training
-	if (property_exists($c, 'education')) {
+	if (prop_has_value($c, 'education')) {
 		$pdf->Ln();
 		$pdf->Cell($pdf->GetPageWidth(), 12, '', 'B', 2);
 		$pdf->Cell($pdf->GetPageWidth(), 12, '', 0, 2);
@@ -262,7 +292,7 @@ function build_resume($c, $tech_skills)
 
 	// Certifications
 
-	if (property_exists($c, 'certifications')) {
+	if (prop_has_value($c, 'certifications')) {
 		$pdf->Ln();
 		$pdf->Cell($pdf->GetPageWidth(), 4, '', 'B', 2);
 		$pdf->Cell($pdf->GetPageWidth(), 12, '', 0, 2);
@@ -282,6 +312,8 @@ function build_resume($c, $tech_skills)
 
 	$pdf->Output();
 }
+
+// Job
 
 function display_job($job, $pdf, $xPos)
 {
@@ -308,14 +340,14 @@ function display_job($job, $pdf, $xPos)
 
 	$pdf->Cell($pdf->GetPageWidth(), 4, '', 0, 2);
 
-	if (property_exists($job, 'jobHighlights')) {
+	if (prop_has_value($job, 'highlights')) {
 		$pdf->Cell(0, LN_HEIGHT, 'Responsibilities & Achievements', 0, 2);
 		$pdf->Cell($pdf->GetPageWidth(), 4, '', 0, 2);
 
 		$yPos = $pdf->getY();
 		$pdf->SetFont('Arial', '', 10);
 
-		foreach ($job->jobHighlights as $highlight) {
+		foreach ($job->highlights as $highlight) {
 			$pdf->setXY($xPos, $yPos);
 			$pdf->Cell(5, 5, chr(127), 0, 0, 'L');
 			$pdf->MultiCell(160, 4, trim($highlight->highlight));
@@ -340,21 +372,21 @@ function build_job_environment($job)
 
 function build_job_loc($job)
 {
-	$city = property_exists($job, 'municipality') ? ', ' . $job->municipality : '';
-	$state = property_exists($job, 'region') ? ', ' . $job->region : '';
-	$country = property_exists($job, 'countryCode') ? ', ' . $job->countryCode : '';
+	$city = prop_has_value($job, 'municipality') ? ', ' . $job->municipality : '';
+	$state = prop_has_value($job, 'region') ? ', ' . $job->region : '';
+	$country = prop_has_value($job, 'countryCode') ? ', ' . $job->countryCode : '';
 	return $job->name . $city . $state . $country;
 }
 
 function build_job_dates($job)
 {
 	$ret = '';
-	if (property_exists($job, 'startDate')) {
+	if (prop_has_value($job, 'startDate')) {
 		$start = new DateTime($job->startDate);
 		$startMonth = $start->format('M/Y');
-		if (property_exists($job, 'endDate')) {
+		if (prop_has_value($job, 'endDate')) {
 			$end = new DateTime($job->endDate);
-			$endMonth = $start->format('M/Y');
+			$endMonth = $end->format('M/Y');
 		} else {
 			$endMonth = 'Present';
 		}
@@ -370,7 +402,7 @@ function display_education($ed, $pdf)
 	$pdf->SetTextColor(255, 0, 0);
 	$pdf->Cell(0, LN_HEIGHT, $ed->degreeName, 0, 2);
 
-	if (property_exists($ed, 'schoolName')) {
+	if (prop_has_value($ed, 'schoolName')) {
 		$pdf->SetFont('Arial', 'I', 12);
 		$pdf->SetTextColor(0);
 		$pdf->Cell(0, LN_HEIGHT, $ed->schoolName, 0, 2);
