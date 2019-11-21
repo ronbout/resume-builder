@@ -19,13 +19,15 @@ define('LABEL_SIZE', 14);
 
 require('fpdf2/fpdf_mc_table.php');
 
+$http_host = $_SERVER['HTTP_HOST'];
+
 // get id from GET if present, otherwise use 7 as default for practice
 $id = (isset($_GET['id']) && $_GET['id'] && $_GET['id'] !== 'undefined') ? $_GET['id'] : 7;
 
 // first retrieve the api info for the candidate
-$candidate = get_candidate($id);
+$candidate = get_candidate($id, $http_host);
 // the skills listing is a separate api call
-$tech_skills = build_tech_skills($id);
+$tech_skills = build_tech_skills($id, $http_host);
 
 // have to extend the fpdf class for the header functionality
 
@@ -48,10 +50,9 @@ build_resume($candidate, $tech_skills);
 
 //****************************************************
 
-function get_candidate($id)
+function get_candidate($id, $http_host = "localhost")
 {
-	$url = "http://13.90.143.153/3sixd/api/candidates/$id?api_cc=three&api_key=fj49fk390gfk3f50";
-	//$url = "http://localhost/3sixd/api/candidates/$id?api_cc=three&api_key=fj49fk390gfk3f50";
+	$url = "http://$http_host/3sixd/api/candidates/$id?api_cc=three&api_key=fj49fk390gfk3f50";
 	$ret = curl_load_file($url, array(), 'GET');
 
 	// echo  var_dump($ret);
@@ -64,10 +65,9 @@ function get_candidate($id)
 	return $tmp->data;
 }
 
-function get_candidate_skills($id)
+function get_candidate_skills($id, $http_host = "localhost")
 {
-	$url = "http://13.90.143.153/3sixd/api/candidate_skills/candidate_id/$id?api_cc=three&api_key=fj49fk390gfk3f50";
-	//$url = "http://localhost/3sixd/api/candidate_skills/candidate_id/$id?api_cc=three&api_key=fj49fk390gfk3f50";
+	$url = "http://$http_host/3sixd/api/candidate_skills/candidate_id/$id?api_cc=three&api_key=fj49fk390gfk3f50";
 	$ret = curl_load_file($url, array(), 'GET');
 
 	// echo  var_dump($ret);
@@ -127,10 +127,10 @@ function curl_load_file($url, $post_string = null, $request_type = 'POST')
 	return $output;
 }
 
-function build_tech_skills($id)
+function build_tech_skills($id, $http_host)
 {
 
-	$cand_skills = get_candidate_skills(($id));
+	$cand_skills = get_candidate_skills($id, $http_host);
 	// build the list of skills, grouped by tags for display
 	// in the Technical Skills section
 
