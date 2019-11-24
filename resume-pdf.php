@@ -1,13 +1,13 @@
 <?php
 
-// for some reason, incorrectly getting a DEPRECATED error for FPDF construct
-// it CORRECTLY uses __construct, but gets error that it is using function FPDF()
 
 function prop_has_value($obj, $prop)
 {
 	return property_exists($obj, $prop) && $obj->$prop;
 }
 
+// for some reason, incorrectly getting a DEPRECATED error for FPDF construct
+// it CORRECTLY uses __construct, but gets error that it is using function FPDF()
 error_reporting(~E_DEPRECATED);
 
 set_time_limit(10 * 60);
@@ -30,23 +30,35 @@ $candidate = get_candidate($id, $http_host);
 $tech_skills = build_tech_skills($id, $http_host);
 
 // have to extend the fpdf class for the header functionality
-
 class PDF extends FPDF_MC_Table
 {
-
 	function Header()
 	{
 		$this->SetFont('');
-		$this->Cell(0, 3, '', 0, 2, '', false);
+		$this->Cell(0, 3, '', 0, 1, '', false);
 		$this->SetFillColor(245, 30, 30);
-		$this->Cell(0, 5, '', 0, 2, '', true);
+		$this->Cell(0, 5, '', 0, 1, '', true);
 		$this->SetFillColor(200);
-		$this->Cell(0, 8, '', 0, 2, '', true);
+		$this->Cell(0, 8, '', 0, 1, '', true);
 		$this->Cell($this->w, 4, '', 0, 2);
 	}
 }
 
-build_resume($candidate, $tech_skills);
+$pdf = new PDF();
+build_globals($pdf);
+build_resume($pdf, $candidate, $tech_skills);
+
+$pdf->Output();
+
+function build_globals($pdf)
+{
+	$GLOBALS['pagewidth'] = $pdf->GetPageWidth();
+	$GLOBALS['pageheight'] = $pdf->GetPageHeight();
+	$GLOBALS['xIndentPos'] = 38;
+	define('PAGEWIDTH', $GLOBALS['pagewidth']);
+	define('PAGEHEIGHT', $GLOBALS['pageheight']);
+	define('X_INDEX_POS', $GLOBALS['xIndentPos']);
+}
 
 //****************************************************
 
@@ -54,8 +66,6 @@ function get_candidate($id, $http_host = "localhost")
 {
 	$url = "http://$http_host/3sixd/api/candidates/$id?api_cc=three&api_key=fj49fk390gfk3f50";
 	$ret = curl_load_file($url, array(), 'GET');
-
-	// echo  var_dump($ret);
 
 	$tmp = json_decode($ret);
 	if (!property_exists($tmp, 'data')) {
@@ -70,11 +80,9 @@ function get_candidate_skills($id, $http_host = "localhost")
 	$url = "http://$http_host/3sixd/api/candidate_skills/candidate_id/$id?api_cc=three&api_key=fj49fk390gfk3f50";
 	$ret = curl_load_file($url, array(), 'GET');
 
-	// echo  var_dump($ret);
-
 	$tmp = json_decode($ret);
 	if (!property_exists($tmp, 'data')) {
-		echo 'That candidate could not be found';
+		echo 'That candidate skills could not be found';
 		die();
 	}
 	return $tmp->data;
@@ -129,18 +137,10 @@ function curl_load_file($url, $post_string = null, $request_type = 'POST')
 
 function build_tech_skills($id, $http_host)
 {
-
-	$cand_skills = get_candidate_skills($id, $http_host);
 	// build the list of skills, grouped by tags for display
 	// in the Technical Skills section
-
+	$cand_skills = get_candidate_skills($id, $http_host);
 	$tech_skills = array();
-	/**
-	 * 
-	 * loop through cand skills building $tech skills like below
-	 * 
-	 * 
-	 */
 
 	foreach ($cand_skills->skills as $cSkill) {
 		if (!$cSkill->resumeTechtagId) continue;
@@ -158,21 +158,25 @@ function build_tech_skills($id, $http_host)
 	return $tech_skills;
 }
 
-function build_resume($c, $tech_skills)
+function setDefaults($pdf, $c)
 {
-	$pdf = new PDF();
-
 	$pdf->SetTitle($c->person->formattedName);
 	$pdf->SetMargins(0, 0, 0);
 	$pdf->SetAutoPageBreak(true, 10);
-	$pdf->AddFont('Signika', '', 'signika.php');
-	$pdf->AddFont('Signika', 'B', 'signikab.php');
-	$pdf->AddFont('Signika', 'BI', 'signikabi.php');
-	$pdf->AddPage();
+	$pdf->AddFont(LABEL_FONT, '', 'signika.php');
+	$pdf->AddFont(LABEL_FONT, 'B', 'signikab.php');
+	$pdf->AddFont(LABEL_FONT, 'BI', 'signikabi.php');
+}
 
-	// TODO:  CALCULATE THE WIDTH OF THE VARIOUS PARTS OF THE HEADING AND MAKE SURE
-	// 		  THAT IT IS EVENLY SPACED!  use GetStringWidth and the # of images
+function disp_horiz_separator($pdf, $marginTop = 1, $marginBottom = 4)
+{
+	$pdf->Ln();
+	$pdf->Cell(PAGEWIDTH, $marginTop, '', 'B', 1);
+	$pdf->Cell(PAGEWIDTH, $marginBottom, '', 0, 1);
+}
 
+function disp_cand_header($pdf, $c)
+{
 	// calc Name length
 	$pdf->SetFont(LABEL_FONT, 'BI', 22);
 	$nameWidth = $pdf->GetStringWidth($c->person->formattedName);
@@ -194,7 +198,7 @@ function build_resume($c, $tech_skills)
 
 	// calculate left margin and add that to the titleWidth to get the total cell width
 
-	$leftMargin = ($pdf->GetPageWidth() - ($nameWidth + $titleWidth + $imageWidth + 12)) / 2;
+	$leftMargin = (PAGEWIDTH - ($nameWidth + $titleWidth + $imageWidth + 12)) / 2;
 
 	$pdf->SetFont(LABEL_FONT, 'BI', 22);
 	$pdf->Cell($nameWidth + $leftMargin, 16, $c->person->formattedName, 0, 0, 'R', false);
@@ -218,28 +222,27 @@ function build_resume($c, $tech_skills)
 			}
 		}
 	}
+}
 
-	$pdf->Ln();
-	$pdf->Cell($pdf->GetPageWidth(), 1, '', 'B', 2);
-	$pdf->Cell($pdf->GetPageWidth(), 4, '', 0, 2);
-
-	// candidate highlights
+function disp_cand_highlights($pdf, $c, $xPos = X_INDEX_POS)
+{
 	$pdf->SetFont(LABEL_FONT, 'B', LABEL_SIZE);
 	$pdf->MultiCell(32, 6, "Professional\nSummary", 0, 'R');
 
 	$pdf->SetFont('Arial', '', 10);
 
 	$yPos = 41;
-	$xPos = 38;
 	foreach ($c->candidateHighlights as $highlight) {
 		$pdf->setXY($xPos, $yPos);
 		$pdf->Cell(5, 5, chr(127), 0, 0, 'L');
 		$pdf->MultiCell(160, 4, trim($highlight->highlight));
 		$yPos = $pdf->getY() + 2;
 	}
+}
 
-	// technical skills
-	$pdf->Cell($pdf->GetPageWidth(), 12, '', 0, 2);
+function disp_tech_skills($pdf, $tech_skills, $xPos = X_INDEX_POS)
+{
+	$pdf->Cell(PAGEWIDTH, 12, '', 0, 2);
 	$pdf->SetFont(LABEL_FONT, 'B', LABEL_SIZE);
 	$tmpY = $pdf->GetY();
 	$pdf->MultiCell(32, LN_HEIGHT, "Technical\nSkills", 0, 'R');
@@ -257,11 +260,11 @@ function build_resume($c, $tech_skills)
 		$pdf->setX($xPos);
 		$pdf->Row(array($tech_skill['name'], implode(', ', $tech_skill['skills'])), LN_HEIGHT);
 	}
+}
 
-	// Experience
-	$pdf->Ln();
-	$pdf->Cell($pdf->GetPageWidth(), 12, '', 'B', 2);
-	$pdf->Cell($pdf->GetPageWidth(), 12, '', 0, 2);
+function disp_cand_exp($pdf, $c, $xPos = X_INDEX_POS)
+{
+	disp_horiz_separator($pdf, 12, 12);
 	$pdf->SetFont(LABEL_FONT, 'B', LABEL_SIZE);
 	$tmpY = $pdf->GetY();
 	$pdf->MultiCell(32, LN_HEIGHT, "Experience", 0, 'R');
@@ -272,49 +275,9 @@ function build_resume($c, $tech_skills)
 	foreach ($c->experience as $job) {
 		display_job($job, $pdf, $xPos);
 	}
-
-	// Education & Training
-	if (prop_has_value($c, 'education')) {
-		$pdf->Ln();
-		$pdf->Cell($pdf->GetPageWidth(), 12, '', 'B', 2);
-		$pdf->Cell($pdf->GetPageWidth(), 12, '', 0, 2);
-		$pdf->SetFont(LABEL_FONT, 'B', LABEL_SIZE);
-		$tmpY = $pdf->GetY();
-		$pdf->MultiCell(32, LN_HEIGHT, "Education\n&Training", 0, 'R');
-		$tmpY = ($tmpY > $pdf->GetY()) ? $pdf->GetY() - (LN_HEIGHT * 2) : $tmpY;
-
-		$pdf->SetXY($xPos, $tmpY);
-
-		foreach ($c->education as $ed) {
-			display_education($ed, $pdf);
-		}
-	}
-
-	// Certifications
-
-	if (prop_has_value($c, 'certifications')) {
-		$pdf->Ln();
-		$pdf->Cell($pdf->GetPageWidth(), 4, '', 'B', 2);
-		$pdf->Cell($pdf->GetPageWidth(), 12, '', 0, 2);
-		$pdf->SetFont(LABEL_FONT, 'B', LABEL_SIZE);
-		$tmpY = $pdf->GetY();
-		$pdf->MultiCell(32, LN_HEIGHT, "Certifications", 0, 'R');
-		$tmpY = ($tmpY > $pdf->GetY()) ? $pdf->GetY() - LN_HEIGHT : $tmpY;
-
-		$yPos = $tmpY;
-		foreach ($c->certifications as $cert) {
-			$pdf->setXY($xPos, $yPos);
-			$pdf->Cell(5, LN_HEIGHT, chr(127), 0, 0, 'L');
-			$pdf->MultiCell(160, LN_HEIGHT, trim($cert->name));
-			$yPos = $pdf->getY() + 3;
-		}
-	}
-
-	$pdf->Output();
 }
 
 // Job
-
 function display_job($job, $pdf, $xPos)
 {
 	// job title
@@ -338,11 +301,11 @@ function display_job($job, $pdf, $xPos)
 	$pdf->SetTextColor(0);
 	$pdf->SetX($xPos);
 
-	$pdf->Cell($pdf->GetPageWidth(), 4, '', 0, 2);
+	$pdf->Cell(PAGEWIDTH, 4, '', 0, 2);
 
 	if (prop_has_value($job, 'highlights')) {
 		$pdf->Cell(0, LN_HEIGHT, 'Responsibilities & Achievements', 0, 2);
-		$pdf->Cell($pdf->GetPageWidth(), 4, '', 0, 2);
+		$pdf->Cell(PAGEWIDTH, 4, '', 0, 2);
 
 		$yPos = $pdf->getY();
 		$pdf->SetFont('Arial', '', 10);
@@ -358,7 +321,7 @@ function display_job($job, $pdf, $xPos)
 	// Job Environment...skill list
 	$pdf->SetFont('Arial', 'U', 10);
 	$pdf->SetX($xPos - 8);
-	$pdf->Cell($pdf->GetPageWidth(), 8, '', 0, 2);
+	$pdf->Cell(PAGEWIDTH, 8, '', 0, 2);
 	$pdf->Cell(26, LN_HEIGHT, 'Environment:', 0, 0);
 	$pdf->SetFont('Arial', '', 10);
 	$pdf->MultiCell(130, LN_HEIGHT - 2, build_job_environment($job));
@@ -395,6 +358,23 @@ function build_job_dates($job)
 	return $ret;
 }
 
+function disp_cand_eds($pdf, $c, $xPos = X_INDEX_POS)
+{
+	if (prop_has_value($c, 'education')) {
+		disp_horiz_separator($pdf, 12, 12);
+		$pdf->SetFont(LABEL_FONT, 'B', LABEL_SIZE);
+		$tmpY = $pdf->GetY();
+		$pdf->MultiCell(32, LN_HEIGHT, "Education\n&Training", 0, 'R');
+		$tmpY = ($tmpY > $pdf->GetY()) ? $pdf->GetY() - (LN_HEIGHT * 2) : $tmpY;
+
+		$pdf->SetXY($xPos, $tmpY);
+
+		foreach ($c->education as $ed) {
+			display_education($ed, $pdf);
+		}
+	}
+}
+
 function display_education($ed, $pdf)
 {
 	// Degree Name
@@ -408,5 +388,49 @@ function display_education($ed, $pdf)
 		$pdf->Cell(0, LN_HEIGHT, $ed->schoolName, 0, 2);
 	}
 
-	$pdf->Cell($pdf->GetPageWidth(), 8, '', 0, 2);
+	$pdf->Cell(PAGEWIDTH, 8, '', 0, 2);
+}
+
+function disp_cand_cert($pdf, $c, $xPos = X_INDEX_POS)
+{
+	if (prop_has_value($c, 'certifications')) {
+		disp_horiz_separator($pdf, 4, 12);
+		$pdf->SetFont(LABEL_FONT, 'B', LABEL_SIZE);
+		$tmpY = $pdf->GetY();
+		$pdf->MultiCell(32, LN_HEIGHT, "Certifications", 0, 'R');
+		$tmpY = ($tmpY > $pdf->GetY()) ? $pdf->GetY() - LN_HEIGHT : $tmpY;
+
+		$yPos = $tmpY;
+		foreach ($c->certifications as $cert) {
+			$pdf->setXY($xPos, $yPos);
+			$pdf->Cell(5, LN_HEIGHT, chr(127), 0, 0, 'L');
+			$pdf->MultiCell(160, LN_HEIGHT, trim($cert->name));
+			$yPos = $pdf->getY() + 3;
+		}
+	}
+}
+
+function build_resume($pdf, $c, $tech_skills)
+{
+	setDefaults($pdf, $c);
+	$pdf->AddPage();
+
+	disp_cand_header($pdf, $c);
+
+	disp_horiz_separator($pdf);
+
+	// candidate highlights
+	disp_cand_highlights($pdf, $c, X_INDEX_POS);
+
+	// technical skills
+	disp_tech_skills($pdf, $tech_skills, X_INDEX_POS);
+
+	// Experience
+	disp_cand_exp($pdf, $c, X_INDEX_POS);
+
+	// Education & Training
+	disp_cand_eds($pdf, $c, X_INDEX_POS);
+
+	// Certifications
+	disp_cand_cert($pdf, $c, X_INDEX_POS);
 }
