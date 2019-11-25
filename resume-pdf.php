@@ -274,6 +274,7 @@ function disp_cand_exp($pdf, $c, $xPos = X_INDEX_POS)
 
 	foreach ($c->experience as $job) {
 		display_job($job, $pdf, $xPos);
+		$pdf->Cell(0, 8, '', 0, 1);
 	}
 }
 
@@ -281,20 +282,21 @@ function disp_cand_exp($pdf, $c, $xPos = X_INDEX_POS)
 function display_job($job, $pdf, $xPos)
 {
 	// job title
+	$pdf->setX($xPos);
 	$pdf->SetFont(LABEL_FONT, 'B', LABEL_SIZE);
 	$pdf->SetTextColor(255, 0, 0);
-	$pdf->Cell(0, LN_HEIGHT, $job->jobTitle, 0, 2);
-
-	// location and dates
-	$pdf->SetX($xPos);
-	$pdf->SetTextColor(0);
-	$pdf->SetFont(LABEL_FONT, '', LABEL_SIZE);
-	$pdf->Cell(110, LN_HEIGHT, build_job_loc($job->company));
+	$pdf->Cell(110, LN_HEIGHT, $job->jobTitle, 0, 0);
 
 	$pdf->SetTextColor(255);
 	$pdf->SetFillColor(255, 0, 0);
 	$pdf->SetFont(LABEL_FONT, 'B', LABEL_SIZE);
 	$pdf->Cell(50, LN_HEIGHT, build_job_dates($job), 0, 1, "C", true);
+
+	// location and dates
+	$pdf->SetX($xPos);
+	$pdf->SetTextColor(0);
+	$pdf->SetFont(LABEL_FONT, '', LABEL_SIZE);
+	$pdf->Cell(110, LN_HEIGHT, build_job_loc($job->company), 0, 1);
 
 	// Job Highlights
 	$pdf->SetFont('Arial', 'U', 10);
@@ -305,7 +307,7 @@ function display_job($job, $pdf, $xPos)
 
 	if (prop_has_value($job, 'highlights')) {
 		$pdf->Cell(0, LN_HEIGHT, 'Responsibilities & Achievements', 0, 2);
-		$pdf->Cell(PAGEWIDTH, 4, '', 0, 2);
+		$pdf->Cell(PAGEWIDTH, 2, '', 0, 2);
 
 		$yPos = $pdf->getY();
 		$pdf->SetFont('Arial', '', 10);
@@ -314,17 +316,20 @@ function display_job($job, $pdf, $xPos)
 			$pdf->setXY($xPos, $yPos);
 			$pdf->Cell(5, 5, chr(127), 0, 0, 'L');
 			$pdf->MultiCell(160, 4, trim($highlight->highlight));
-			$yPos = $pdf->getY() + 2;
+			$yPos = $pdf->getY() + 1;
 		}
 	}
 
 	// Job Environment...skill list
-	$pdf->SetFont('Arial', 'U', 10);
-	$pdf->SetX($xPos - 8);
-	$pdf->Cell(PAGEWIDTH, 8, '', 0, 2);
-	$pdf->Cell(26, LN_HEIGHT, 'Environment:', 0, 0);
-	$pdf->SetFont('Arial', '', 10);
-	$pdf->MultiCell(130, LN_HEIGHT - 2, build_job_environment($job));
+	$job_skills = build_job_environment($job);
+	if ($job_skills) {
+		$pdf->SetFont('Arial', 'U', 10);
+		$pdf->Cell(0, 5, '', 0, 1);
+		$pdf->SetX($xPos);
+		$pdf->Cell(26, LN_HEIGHT, 'Environment:', 0, 0);
+		$pdf->SetFont('Arial', '', 10);
+		$pdf->MultiCell(130, LN_HEIGHT, $job_skills);
+	}
 }
 
 function build_job_environment($job)
