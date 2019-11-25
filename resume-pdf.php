@@ -14,6 +14,7 @@ set_time_limit(10 * 60);
 
 define('LN_HEIGHT', 6);
 define('HILITE_LN_HEIGHT', 4);
+define('JOB_SKILLS_LN_HEIGHT', 5);
 define('IMAGE_SIZE', 14);
 define('LABEL_FONT', 'Signika');
 define('LABEL_SIZE', 14);
@@ -51,6 +52,13 @@ build_resume($pdf, $candidate, $tech_skills);
 
 $pdf->Output();
 
+
+//****************************************************
+
+/**
+ * Utility functions
+ */
+
 function build_globals($pdf)
 {
 	$GLOBALS['pagewidth'] = $pdf->GetPageWidth();
@@ -61,7 +69,29 @@ function build_globals($pdf)
 	define('X_INDEX_POS', $GLOBALS['xIndentPos']);
 }
 
-//****************************************************
+function calc_multicell_lines($pdf, $str, $w)
+{
+	// must calculate the height of some multi-cell sections
+	// to avoid Page break in the middle (spec Job Environment)
+
+	// loop through each word from the beginning checking length.  When it is too long
+	// take the word that is too long and start the next line with it.  Repeat for new line
+	// when out of words, count lines * line height (ln-h).  Return that value
+
+	$test_w = $w - 10;    // words will not go to very edge of cell
+	$words = explode(' ', str_replace('  ', ' ', trim($str)));
+	$ln_cnt = 0;
+	$tmp_str = '';
+	while (count($words)) {
+		$ln_cnt++;
+		$tmp_str = array_shift($words);
+		while ($pdf->GetStringWidth($tmp_str) < $test_w && count($words)) {
+			if (!count($words)) break;
+			$tmp_str .= array_shift($words);
+		}
+	}
+	return $ln_cnt;
+}
 
 function get_candidate($id, $http_host = "localhost")
 {
@@ -176,6 +206,14 @@ function disp_horiz_separator($pdf, $marginTop = 1, $marginBottom = 4)
 	$pdf->Cell(PAGEWIDTH, $marginBottom, '', 0, 1);
 }
 
+/**
+ * Display sections
+ */
+
+/** 
+ * Candidate Header
+ */
+
 function disp_cand_header($pdf, $c)
 {
 	// calc Name length
@@ -225,6 +263,10 @@ function disp_cand_header($pdf, $c)
 	}
 }
 
+/**
+ * Candidate Highlights/Summary
+ */
+
 function disp_cand_highlights($pdf, $c, $xPos = X_INDEX_POS)
 {
 	$pdf->SetFont(LABEL_FONT, 'B', LABEL_SIZE);
@@ -241,9 +283,16 @@ function disp_cand_highlights($pdf, $c, $xPos = X_INDEX_POS)
 	}
 }
 
+/**
+ * Technical Skills Section
+ */
+
 function disp_tech_skills($pdf, $tech_skills, $xPos = X_INDEX_POS)
 {
-	$pdf->Cell(PAGEWIDTH, 12, '', 0, 2);
+	if ($pdf->getY() > PAGEHEIGHT - 40) {
+		$pdf->addPage();
+	}
+	$pdf->Cell(0, 12, '', 0, 1);
 	$pdf->SetFont(LABEL_FONT, 'B', LABEL_SIZE);
 	$tmpY = $pdf->GetY();
 	$pdf->MultiCell(32, LN_HEIGHT, "Technical\nSkills", 0, 'R');
@@ -262,6 +311,10 @@ function disp_tech_skills($pdf, $tech_skills, $xPos = X_INDEX_POS)
 		$pdf->Row(array($tech_skill['name'], implode(', ', $tech_skill['skills'])), LN_HEIGHT);
 	}
 }
+
+/**
+ * Experience functions
+ */
 
 function disp_cand_exp($pdf, $c, $xPos = X_INDEX_POS)
 {
@@ -324,12 +377,20 @@ function display_job($job, $pdf, $xPos)
 	// Job Environment...skill list
 	$job_skills = build_job_environment($job);
 	if ($job_skills) {
+		$mc_lines = calc_multicell_lines($pdf, $job_skills, 130);
+		// echo 'mc lines: ', $mc_lines;
+		// echo PAGEHEIGHT, '<br>';
+		// echo $pdf->getY();
+		// die();
+		if (($mc_lines * JOB_SKILLS_LN_HEIGHT) + $pdf->getY() > PAGEHEIGHT - 20) {
+			$pdf->addPage();
+		}
 		$pdf->SetFont('Arial', 'U', 10);
-		$pdf->Cell(0, 5, '', 0, 1);
+		$pdf->Cell(0, JOB_SKILLS_LN_HEIGHT, '', 0, 1);
 		$pdf->SetX($xPos);
 		$pdf->Cell(26, LN_HEIGHT, 'Environment:', 0, 0);
 		$pdf->SetFont('Arial', '', 10);
-		$pdf->MultiCell(130, 5, $job_skills);
+		$pdf->MultiCell(130, JOB_SKILLS_LN_HEIGHT, $job_skills);
 	}
 }
 
@@ -364,6 +425,10 @@ function build_job_dates($job)
 	return $ret;
 }
 
+/**
+ * Eduction
+ */
+
 function disp_cand_eds($pdf, $c, $xPos = X_INDEX_POS)
 {
 	if (prop_has_value($c, 'education')) {
@@ -397,6 +462,10 @@ function display_education($ed, $pdf)
 	$pdf->Cell(PAGEWIDTH, 8, '', 0, 2);
 }
 
+/**
+ * Certifications
+ */
+
 function disp_cand_cert($pdf, $c, $xPos = X_INDEX_POS)
 {
 	if (prop_has_value($c, 'certifications')) {
@@ -415,6 +484,10 @@ function disp_cand_cert($pdf, $c, $xPos = X_INDEX_POS)
 		}
 	}
 }
+
+/**
+ * Main Resume build routine
+ */
 
 function build_resume($pdf, $c, $tech_skills)
 {
