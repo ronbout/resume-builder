@@ -13,6 +13,7 @@ error_reporting(~E_DEPRECATED);
 set_time_limit(10 * 60);
 
 define('LN_HEIGHT', 6);
+define('HILITE_LN_HEIGHT', 4);
 define('IMAGE_SIZE', 14);
 define('LABEL_FONT', 'Signika');
 define('LABEL_SIZE', 14);
@@ -234,8 +235,8 @@ function disp_cand_highlights($pdf, $c, $xPos = X_INDEX_POS)
 	$yPos = 41;
 	foreach ($c->candidateHighlights as $highlight) {
 		$pdf->setXY($xPos, $yPos);
-		$pdf->Cell(5, 5, chr(127), 0, 0, 'L');
-		$pdf->MultiCell(160, 4, trim($highlight->highlight));
+		$pdf->Cell(5, HILITE_LN_HEIGHT, chr(127), 0, 0, 'L');
+		$pdf->MultiCell(160, HILITE_LN_HEIGHT, trim($highlight->highlight));
 		$yPos = $pdf->getY() + 2;
 	}
 }
@@ -314,8 +315,8 @@ function display_job($job, $pdf, $xPos)
 
 		foreach ($job->highlights as $highlight) {
 			$pdf->setXY($xPos, $yPos);
-			$pdf->Cell(5, 5, chr(127), 0, 0, 'L');
-			$pdf->MultiCell(160, 4, trim($highlight->highlight));
+			$pdf->Cell(5, HILITE_LN_HEIGHT, chr(127), 0, 0, 'L');
+			$pdf->MultiCell(160, HILITE_LN_HEIGHT, trim($highlight->highlight));
 			$yPos = $pdf->getY() + 1;
 		}
 	}
@@ -328,7 +329,7 @@ function display_job($job, $pdf, $xPos)
 		$pdf->SetX($xPos);
 		$pdf->Cell(26, LN_HEIGHT, 'Environment:', 0, 0);
 		$pdf->SetFont('Arial', '', 10);
-		$pdf->MultiCell(130, LN_HEIGHT, $job_skills);
+		$pdf->MultiCell(130, 5, $job_skills);
 	}
 }
 
