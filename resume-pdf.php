@@ -291,8 +291,10 @@ function disp_tech_skills($pdf, $tech_skills, $xPos = X_INDEX_POS)
 {
 	if ($pdf->getY() > PAGEHEIGHT - 40) {
 		$pdf->addPage();
+		$pdf->Cell(0, 6, '', 0, 1);
+	} else {
+		$pdf->Cell(0, 12, '', 0, 1);
 	}
-	$pdf->Cell(0, 12, '', 0, 1);
 	$pdf->SetFont(LABEL_FONT, 'B', LABEL_SIZE);
 	$tmpY = $pdf->GetY();
 	$pdf->MultiCell(32, LN_HEIGHT, "Technical\nSkills", 0, 'R');
@@ -388,7 +390,7 @@ function display_job($job, $pdf, $xPos)
 		$pdf->SetFont('Arial', 'U', 10);
 		$pdf->Cell(0, JOB_SKILLS_LN_HEIGHT, '', 0, 1);
 		$pdf->SetX($xPos);
-		$pdf->Cell(26, LN_HEIGHT, 'Environment:', 0, 0);
+		$pdf->Cell(14, LN_HEIGHT, 'Skills:', 0, 0);
 		$pdf->SetFont('Arial', '', 10);
 		$pdf->MultiCell(130, JOB_SKILLS_LN_HEIGHT, $job_skills);
 	}
@@ -432,7 +434,7 @@ function build_job_dates($job)
 function disp_cand_eds($pdf, $c, $xPos = X_INDEX_POS)
 {
 	if (prop_has_value($c, 'education')) {
-		disp_horiz_separator($pdf, 12, 12);
+		disp_horiz_separator($pdf, 4, 12);
 		$pdf->SetFont(LABEL_FONT, 'B', LABEL_SIZE);
 		$tmpY = $pdf->GetY();
 		$pdf->MultiCell(32, LN_HEIGHT, "Education\n&Training", 0, 'R');
