@@ -1,11 +1,5 @@
 <?php
 
-
-function prop_has_value($obj, $prop)
-{
-	return property_exists($obj, $prop) && $obj->$prop;
-}
-
 // for some reason, incorrectly getting a DEPRECATED error for FPDF construct
 // it CORRECTLY uses __construct, but gets error that it is using function FPDF()
 error_reporting(~E_DEPRECATED);
@@ -31,24 +25,11 @@ $candidate = get_candidate($id, $http_host);
 // the skills listing is a separate api call
 $tech_skills = build_tech_skills($id, $http_host);
 
-// have to extend the fpdf class for the header functionality
-class PDF extends FPDF_MC_Table
-{
-	function Header()
-	{
-		$this->SetFont('');
-		$this->Cell(0, 3, '', 0, 1, '', false);
-		$this->SetFillColor(245, 30, 30);
-		$this->Cell(0, 5, '', 0, 1, '', true);
-		$this->SetFillColor(200);
-		$this->Cell(0, 8, '', 0, 1, '', true);
-		$this->Cell($this->w, 4, '', 0, 2);
-	}
-}
+$layout = build_layout_obj();
 
-$pdf = new PDF();
+$pdf = set_up_pdf();
 build_globals($pdf);
-build_resume($pdf, $candidate, $tech_skills);
+build_resume($pdf, $candidate, $tech_skills, $layout);
 
 $pdf->Output();
 
@@ -58,6 +39,47 @@ $pdf->Output();
 /**
  * Utility functions
  */
+
+function set_up_pdf()
+{
+	// have to extend the fpdf class for the header functionality
+	class PDF extends FPDF_MC_Table
+	{
+		function Header()
+		{
+			$this->SetFont('');
+			$this->Cell(0, 3, '', 0, 1, '', false);
+			$this->SetFillColor(245, 30, 30);
+			$this->Cell(0, 5, '', 0, 1, '', true);
+			$this->SetFillColor(200);
+			$this->Cell(0, 8, '', 0, 1, '', true);
+			$this->Cell($this->w, 4, '', 0, 2);
+		}
+	}
+
+	return new PDF();
+}
+
+function build_layout_obj()
+{
+	/**
+	 * check GET for layout object 
+	 * if it doesn't exist, use default
+	 */
+
+	$default_layout = array(
+		'sections' => array(
+			array('name' => 'hd'),
+			array('name' => 'ts'),
+			array('name' => 'hi'),
+			array('name' => 'ed'),
+			array('name' => 'ex'),
+			array('name' => 'ct')
+		)
+	);
+
+	return $default_layout;
+}
 
 function build_globals($pdf)
 {
@@ -91,6 +113,11 @@ function calc_multicell_lines($pdf, $str, $w)
 		}
 	}
 	return $ln_cnt;
+}
+
+function prop_has_value($obj, $prop)
+{
+	return property_exists($obj, $prop) && $obj->$prop;
 }
 
 function get_candidate($id, $http_host = "localhost")
@@ -199,10 +226,10 @@ function setDefaults($pdf, $c)
 	$pdf->AddFont(LABEL_FONT, 'BI', 'signikabi.php');
 }
 
-function disp_horiz_separator($pdf, $marginTop = 1, $marginBottom = 4)
+function disp_horiz_separator($pdf, $display_ln = true, $marginTop = 1, $marginBottom = 4)
 {
 	$pdf->Ln();
-	$pdf->Cell(PAGEWIDTH, $marginTop, '', 'B', 1);
+	$pdf->Cell(PAGEWIDTH, $marginTop, '', $display_ln ? 'B' : 0, 1);
 	$pdf->Cell(PAGEWIDTH, $marginBottom, '', 0, 1);
 }
 
@@ -213,7 +240,6 @@ function disp_horiz_separator($pdf, $marginTop = 1, $marginBottom = 4)
 /** 
  * Candidate Header
  */
-
 function disp_cand_header($pdf, $c)
 {
 	// calc Name length
@@ -266,15 +292,15 @@ function disp_cand_header($pdf, $c)
 /**
  * Candidate Highlights/Summary
  */
-
 function disp_cand_highlights($pdf, $c, $xPos = X_INDEX_POS)
 {
+
+	$yPos = $pdf->getY();
 	$pdf->SetFont(LABEL_FONT, 'B', LABEL_SIZE);
 	$pdf->MultiCell(32, 6, "Professional\nSummary", 0, 'R');
 
 	$pdf->SetFont('Arial', '', 10);
 
-	$yPos = 41;
 	foreach ($c->candidateHighlights as $highlight) {
 		$pdf->setXY($xPos, $yPos);
 		$pdf->Cell(5, HILITE_LN_HEIGHT, chr(127), 0, 0, 'L');
@@ -286,7 +312,6 @@ function disp_cand_highlights($pdf, $c, $xPos = X_INDEX_POS)
 /**
  * Technical Skills Section
  */
-
 function disp_tech_skills($pdf, $tech_skills, $xPos = X_INDEX_POS)
 {
 	if ($pdf->getY() > PAGEHEIGHT - 40) {
@@ -317,10 +342,8 @@ function disp_tech_skills($pdf, $tech_skills, $xPos = X_INDEX_POS)
 /**
  * Experience functions
  */
-
 function disp_cand_exp($pdf, $c, $xPos = X_INDEX_POS)
 {
-	disp_horiz_separator($pdf, 12, 12);
 	$pdf->SetFont(LABEL_FONT, 'B', LABEL_SIZE);
 	$tmpY = $pdf->GetY();
 	$pdf->MultiCell(32, LN_HEIGHT, "Experience", 0, 'R');
@@ -430,11 +453,9 @@ function build_job_dates($job)
 /**
  * Eduction
  */
-
 function disp_cand_eds($pdf, $c, $xPos = X_INDEX_POS)
 {
 	if (prop_has_value($c, 'education')) {
-		disp_horiz_separator($pdf, 4, 12);
 		$pdf->SetFont(LABEL_FONT, 'B', LABEL_SIZE);
 		$tmpY = $pdf->GetY();
 		$pdf->MultiCell(32, LN_HEIGHT, "Education\n&Training", 0, 'R');
@@ -467,11 +488,9 @@ function display_education($ed, $pdf)
 /**
  * Certifications
  */
-
 function disp_cand_cert($pdf, $c, $xPos = X_INDEX_POS)
 {
 	if (prop_has_value($c, 'certifications')) {
-		disp_horiz_separator($pdf, 4, 12);
 		$pdf->SetFont(LABEL_FONT, 'B', LABEL_SIZE);
 		$tmpY = $pdf->GetY();
 		$pdf->MultiCell(32, LN_HEIGHT, "Certifications", 0, 'R');
@@ -491,27 +510,59 @@ function disp_cand_cert($pdf, $c, $xPos = X_INDEX_POS)
  * Main Resume build routine
  */
 
-function build_resume($pdf, $c, $tech_skills)
+function build_resume($pdf, $c, $tech_skills, $layout)
 {
 	setDefaults($pdf, $c);
 	$pdf->AddPage();
 
-	disp_cand_header($pdf, $c);
+	// check for layout GET object
+	$disp_layout = $layout;
+	if (isset($_GET['layout'])) {
+		if ($tmp = json_decode(urldecode($_GET['layout']), true)) {
+			$disp_layout = $tmp;
+		}
+	}
 
-	disp_horiz_separator($pdf);
+	// var_dump($disp_layout);
+	// die();
 
-	// candidate highlights
-	disp_cand_highlights($pdf, $c, X_INDEX_POS);
+	// loop through the layout def and build as defined
+	foreach ($disp_layout['sections'] as $section) {
+		display_resume_section($pdf, $c, $tech_skills, $section);
+	}
+}
 
-	// technical skills
-	disp_tech_skills($pdf, $tech_skills, X_INDEX_POS);
-
-	// Experience
-	disp_cand_exp($pdf, $c, X_INDEX_POS);
-
-	// Education & Training
-	disp_cand_eds($pdf, $c, X_INDEX_POS);
-
-	// Certifications
-	disp_cand_cert($pdf, $c, X_INDEX_POS);
+function display_resume_section($pdf, $c, $tech_skills, $section)
+{
+	switch ($section['name']) {
+		case 'hd':
+			disp_cand_header($pdf, $c);
+			disp_horiz_separator($pdf, true);
+			break;
+		case 'hi':
+			// candidate highlights
+			disp_cand_highlights($pdf, $c, X_INDEX_POS);
+			disp_horiz_separator($pdf, false);
+			break;
+		case 'ts':
+			// technical skills
+			disp_tech_skills($pdf, $tech_skills, X_INDEX_POS);
+			disp_horiz_separator($pdf, false);
+			break;
+		case 'ex':
+			// Experience
+			disp_cand_exp($pdf, $c, X_INDEX_POS);
+			disp_horiz_separator($pdf, false);
+			break;
+		case 'ed':
+			// Education & Training
+			disp_cand_eds($pdf, $c, X_INDEX_POS);
+			disp_horiz_separator($pdf, false);
+			break;
+		case 'ct':
+			// Certifications
+			disp_cand_cert($pdf, $c, X_INDEX_POS);
+			disp_horiz_separator($pdf, false);
+			break;
+	}
 }
