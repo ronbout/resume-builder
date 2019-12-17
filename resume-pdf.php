@@ -72,8 +72,8 @@ function build_layout_obj()
 			array('name' => 'hd'),
 			array('name' => 'ts'),
 			array('name' => 'hi'),
-			array('name' => 'ed'),
 			array('name' => 'ex'),
+			array('name' => 'ed'),
 			array('name' => 'ct')
 		)
 	);
@@ -248,7 +248,8 @@ function disp_cand_header($pdf, $c)
 
 	// calc Title length
 	$pdf->SetFont('Arial', '', 16);
-	$titleWidth = $pdf->GetStringWidth($c->experience[0]->jobTitle);
+	$jobTitle = prop_has_value($c, 'jobTitle') ? $c->jobTitle : $c->experience[0]->jobTitle;
+	$titleWidth = $pdf->GetStringWidth($jobTitle);
 
 	// determine number of cert images
 	$imgCnt = 0;
@@ -269,7 +270,7 @@ function disp_cand_header($pdf, $c)
 	$pdf->Cell($nameWidth + $leftMargin, 16, $c->person->formattedName, 0, 0, 'R', false);
 	$pdf->Cell(12, 16, '', 0, 0, '', false);
 	$pdf->SetFont('Arial', '', 16);
-	$pdf->Cell($titleWidth + 4, 16, $c->experience[0]->jobTitle, 0, 0, 'L', false);
+	$pdf->Cell($titleWidth + 4, 16, $jobTitle, 0, 0, 'L', false);
 
 	// certificate images, if any
 	// max of 2 images
