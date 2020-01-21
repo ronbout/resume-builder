@@ -13,12 +13,12 @@ define('IMAGE_SIZE', 14);
 define('LABEL_FONT', 'Signika');
 define('LABEL_SIZE', 14);
 
-require('fpdf2/fpdf_mc_table.php');
+require 'fpdf2/fpdf_mc_table.php';
 
 $http_host = $_SERVER['HTTP_HOST'];
 
 // get id from GET if present, otherwise use 7 as default for practice
-$id = (isset($_GET['id']) && $_GET['id'] && $_GET['id'] !== 'undefined') ? $_GET['id'] : 7;
+$id = (isset($_GET['id']) && $_GET['id'] && 'undefined' !== $_GET['id']) ? $_GET['id'] : 7;
 
 // first retrieve the api info for the candidate
 $candidate = get_candidate($id, $http_host);
@@ -33,19 +33,17 @@ build_resume($pdf, $candidate, $tech_skills, $layout);
 
 $pdf->Output();
 
-
 //****************************************************
 
 /**
- * Utility functions
+ * Utility functions.
  */
-
 function set_up_pdf()
 {
 	// have to extend the fpdf class for the header functionality
 	class PDF extends FPDF_MC_Table
 	{
-		function Header()
+		public function Header()
 		{
 			$this->SetFont('');
 			$this->Cell(0, 3, '', 0, 1, '', false);
@@ -62,23 +60,30 @@ function set_up_pdf()
 
 function build_layout_obj()
 {
-	/**
-	 * check GET for layout object 
-	 * if it doesn't exist, use default
-	 */
+	$layout = [
+		'sections' => [
+			['name' => 'hd'],
+			['name' => 'ob'],
+			['name' => 'ts'],
+			['name' => 'hi'],
+			['name' => 'ex'],
+			['name' => 'ed'],
+			['name' => 'ct'],
+		],
+	];
 
-	$default_layout = array(
-		'sections' => array(
-			array('name' => 'hd'),
-			array('name' => 'ts'),
-			array('name' => 'hi'),
-			array('name' => 'ex'),
-			array('name' => 'ed'),
-			array('name' => 'ct')
-		)
-	);
+	// check for layout GET object
+	$disp_layout = $layout;
+	if (isset($_GET['layout'])) {
+		if ($tmp = json_decode($_GET['layout'], true)) {
+			$disp_layout = $tmp;
+		}
+	}
 
-	return $default_layout;
+	// var_dump($disp_layout);
+	// die();
+
+	return $disp_layout;
 }
 
 function build_globals($pdf)
@@ -105,44 +110,49 @@ function calc_multicell_lines($pdf, $str, $w)
 	$ln_cnt = 0;
 	$tmp_str = '';
 	while (count($words)) {
-		$ln_cnt++;
+		++$ln_cnt;
 		$tmp_str = array_shift($words);
 		while ($pdf->GetStringWidth($tmp_str) < $test_w && count($words)) {
-			if (!count($words)) break;
+			if (!count($words)) {
+				break;
+			}
 			$tmp_str .= array_shift($words);
 		}
 	}
+
 	return $ln_cnt;
 }
 
 function prop_has_value($obj, $prop)
 {
-	return property_exists($obj, $prop) && $obj->$prop;
+	return property_exists($obj, $prop) && $obj->{$prop};
 }
 
-function get_candidate($id, $http_host = "localhost")
+function get_candidate($id, $http_host = 'localhost')
 {
-	$url = "http://$http_host/3sixd/api/candidates/$id?api_cc=three&api_key=fj49fk390gfk3f50";
-	$ret = curl_load_file($url, array(), 'GET');
+	$url = "http://{$http_host}/3sixd/api/candidates/{$id}?api_cc=three&api_key=fj49fk390gfk3f50";
+	$ret = curl_load_file($url, [], 'GET');
 
 	$tmp = json_decode($ret);
 	if (!property_exists($tmp, 'data')) {
 		echo 'That candidate could not be found';
 		die();
 	}
+
 	return $tmp->data;
 }
 
-function get_candidate_skills($id, $http_host = "localhost")
+function get_candidate_skills($id, $http_host = 'localhost')
 {
-	$url = "http://$http_host/3sixd/api/candidate_skills/candidate_id/$id?api_cc=three&api_key=fj49fk390gfk3f50";
-	$ret = curl_load_file($url, array(), 'GET');
+	$url = "http://{$http_host}/3sixd/api/candidate_skills/candidate_id/{$id}?api_cc=three&api_key=fj49fk390gfk3f50";
+	$ret = curl_load_file($url, [], 'GET');
 
 	$tmp = json_decode($ret);
 	if (!property_exists($tmp, 'data')) {
 		echo 'That candidate skills could not be found';
 		die();
 	}
+
 	return $tmp->data;
 }
 
@@ -161,25 +171,25 @@ function curl_load_file($url, $post_string = null, $request_type = 'POST')
 
 	curl_setopt($ch, CURLOPT_USERAGENT, 'localhost test');
 
-	if ($request_type == 'POST') {
+	if ('POST' == $request_type) {
 		curl_setopt($ch, CURLOPT_POST, 1);
 	} else {
 		// request_type could be PUT or DELETE
 		curl_setopt($ch, CURLOPT_CUSTOMREQUEST, $request_type);
 	}
 
-	if ($request_type != 'DELETE') {
+	if ('DELETE' != $request_type) {
 		curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query($post_string));
 	}
 
 	// set up http header fields
 
-	$headers = array(
+	$headers = [
 		'Accept: text/json',
 		'Pragma: no-cache',
 		'Content-Type: application/x-www-form-urlencoded',
-		'Connection: keep-alive'
-	);
+		'Connection: keep-alive',
+	];
 
 	curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
 
@@ -190,6 +200,7 @@ function curl_load_file($url, $post_string = null, $request_type = 'POST')
 	$output = curl_exec($ch);
 	// close curl resource to free up system resources
 	curl_close($ch);
+
 	return $output;
 }
 
@@ -198,21 +209,24 @@ function build_tech_skills($id, $http_host)
 	// build the list of skills, grouped by tags for display
 	// in the Technical Skills section
 	$cand_skills = get_candidate_skills($id, $http_host);
-	$tech_skills = array();
+	$tech_skills = [];
 
 	foreach ($cand_skills->skills as $cSkill) {
-		if (!$cSkill->resumeTechtagId) continue;
+		if (!$cSkill->resumeTechtagId) {
+			continue;
+		}
 		if (!array_key_exists($cSkill->resumeTechtagId, $tech_skills)) {
-			$tech_skills[$cSkill->resumeTechtagId] = array(
+			$tech_skills[$cSkill->resumeTechtagId] = [
 				'name' => $cSkill->resumeTechtagName,
-				'skills' => array()
-			);
+				'skills' => [],
+			];
 		}
 		// add the skill to the tag, if not there already
 		if (!array_search($cSkill->skillName, $tech_skills[$cSkill->resumeTechtagId]['skills'])) {
 			$tech_skills[$cSkill->resumeTechtagId]['skills'][] = $cSkill->skillName;
 		}
 	}
+
 	return $tech_skills;
 }
 
@@ -234,11 +248,14 @@ function disp_horiz_separator($pdf, $display_ln = true, $marginTop = 1, $marginB
 }
 
 /**
- * Display sections
+ * Display sections.
+ *
+ * @param mixed $pdf
+ * @param mixed $c
  */
 
-/** 
- * Candidate Header
+/**
+ * Candidate Header.
  */
 function disp_cand_header($pdf, $c)
 {
@@ -256,7 +273,7 @@ function disp_cand_header($pdf, $c)
 	if (prop_has_value($c, 'certifications')) {
 		foreach ($c->certifications as $cert) {
 			if ($imgCnt < 2 && prop_has_value($cert, 'certificateImage')) {
-				$imgCnt++;
+				++$imgCnt;
 			}
 		}
 	}
@@ -283,7 +300,7 @@ function disp_cand_header($pdf, $c)
 		foreach ($c->certifications as $cert) {
 			if ($imgCnt < 2 && prop_has_value($cert, 'certificateImage')) {
 				$pdf->Image('images/' . $cert->certificateImage, $tmpX, $tmpY, IMAGE_SIZE);
-				$imgCnt++;
+				++$imgCnt;
 				$tmpX += IMAGE_SIZE + 2;
 			}
 		}
@@ -291,18 +308,34 @@ function disp_cand_header($pdf, $c)
 }
 
 /**
- * Candidate Highlights/Summary
+ * Candidate Highlights.
+ *
+ * @param mixed $pdf
+ * @param mixed $c
+ * @param mixed $xPos
+ * @param mixed $disp
  */
-function disp_cand_highlights($pdf, $c, $xPos = X_INDEX_POS)
+function disp_cand_highlights($pdf, $c, $disp, $xPos = X_INDEX_POS)
 {
+	if (!$disp) {
+		$disp_highlights = $c->candidateHighlights;
+	} else {
+		$disp_highlights = [];
+		foreach ($c->candidateHighlights as $highlight) {
+			if (($fnd_key = array_search($highlight->id, $disp)) !== false) {
+				$disp_highlights[$fnd_key] = $highlight;
+			}
+		}
+	}
+
 
 	$yPos = $pdf->getY();
 	$pdf->SetFont(LABEL_FONT, 'B', LABEL_SIZE);
-	$pdf->MultiCell(32, 6, "Professional\nSummary", 0, 'R');
+	$pdf->MultiCell(32, 6, "Professional\nHighlights", 0, 'R');
 
 	$pdf->SetFont('Arial', '', 10);
 
-	foreach ($c->candidateHighlights as $highlight) {
+	foreach ($disp_highlights as $highlight) {
 		$pdf->setXY($xPos, $yPos);
 		$pdf->Cell(5, HILITE_LN_HEIGHT, chr(127), 0, 0, 'L');
 		$pdf->MultiCell(160, HILITE_LN_HEIGHT, trim($highlight->highlight));
@@ -311,7 +344,49 @@ function disp_cand_highlights($pdf, $c, $xPos = X_INDEX_POS)
 }
 
 /**
- * Technical Skills Section
+ * Candidate Objective.
+ *
+ * @param mixed $pdf
+ * @param mixed $c
+ * @param mixed $xPos
+ */
+function disp_cand_objective($pdf, $c, $xPos = X_INDEX_POS)
+{
+	$yPos = $pdf->getY();
+	$pdf->SetFont(LABEL_FONT, 'B', LABEL_SIZE);
+	$pdf->MultiCell(32, 6, 'Objective', 0, 'R');
+
+	$pdf->SetFont('Arial', '', 10);
+
+	$pdf->setXY($xPos, $yPos);
+	$pdf->MultiCell(160, LN_HEIGHT, trim($c->objective));
+}
+
+/**
+ * Candidate Executive Summary.
+ *
+ * @param mixed $pdf
+ * @param mixed $c
+ * @param mixed $xPos
+ */
+function disp_cand_summary($pdf, $c, $xPos = X_INDEX_POS)
+{
+	$yPos = $pdf->getY();
+	$pdf->SetFont(LABEL_FONT, 'B', LABEL_SIZE);
+	$pdf->MultiCell(32, 6, 'Summary', 0, 'R');
+
+	$pdf->SetFont('Arial', '', 10);
+
+	$pdf->setXY($xPos, $yPos);
+	$pdf->MultiCell(160, LN_HEIGHT, trim($c->executiveSummary));
+}
+
+/**
+ * Technical Skills Section.
+ *
+ * @param mixed $pdf
+ * @param mixed $tech_skills
+ * @param mixed $xPos
  */
 function disp_tech_skills($pdf, $tech_skills, $xPos = X_INDEX_POS)
 {
@@ -326,28 +401,32 @@ function disp_tech_skills($pdf, $tech_skills, $xPos = X_INDEX_POS)
 	$pdf->MultiCell(32, LN_HEIGHT, "Technical\nSkills", 0, 'R');
 	// in case the page break occurred while printing 'Technical Skills,
 	// must reset the Y loc
-	$tmpY = ($tmpY > $pdf->GetY()) ? $pdf->GetY() - (LN_HEIGHT * 2)  : $tmpY;
+	$tmpY = ($tmpY > $pdf->GetY()) ? $pdf->GetY() - (LN_HEIGHT * 2) : $tmpY;
 
 	$pdf->SetFont('Arial', '', 10);
 	// using multi-cell table extension to fpdf
 	// first set widths, then send data as array
 
-	$pdf->SetWidths(array(40, 120));
+	$pdf->SetWidths([40, 120]);
 	$pdf->SetXY($xPos, $tmpY);
 	foreach ($tech_skills as $tech_skill) {
 		$pdf->setX($xPos);
-		$pdf->Row(array($tech_skill['name'], implode(', ', $tech_skill['skills'])), LN_HEIGHT);
+		$pdf->Row([$tech_skill['name'], implode(', ', $tech_skill['skills'])], LN_HEIGHT);
 	}
 }
 
 /**
- * Experience functions
+ * Experience functions.
+ *
+ * @param mixed $pdf
+ * @param mixed $c
+ * @param mixed $xPos
  */
 function disp_cand_exp($pdf, $c, $xPos = X_INDEX_POS)
 {
 	$pdf->SetFont(LABEL_FONT, 'B', LABEL_SIZE);
 	$tmpY = $pdf->GetY();
-	$pdf->MultiCell(32, LN_HEIGHT, "Experience", 0, 'R');
+	$pdf->MultiCell(32, LN_HEIGHT, 'Experience', 0, 'R');
 	$tmpY = ($tmpY > $pdf->GetY()) ? $pdf->GetY() - LN_HEIGHT : $tmpY;
 
 	$pdf->SetXY($xPos, $tmpY);
@@ -370,7 +449,7 @@ function display_job($job, $pdf, $xPos)
 	$pdf->SetTextColor(255);
 	$pdf->SetFillColor(255, 0, 0);
 	$pdf->SetFont(LABEL_FONT, 'B', LABEL_SIZE);
-	$pdf->Cell(50, LN_HEIGHT, build_job_dates($job), 0, 1, "C", true);
+	$pdf->Cell(50, LN_HEIGHT, build_job_dates($job), 0, 1, 'C', true);
 
 	// location and dates
 	$pdf->SetX($xPos);
@@ -423,6 +502,7 @@ function display_job($job, $pdf, $xPos)
 function build_job_environment($job)
 {
 	$skills = array_column($job->skills, 'name');
+
 	return implode(', ', $skills);
 }
 
@@ -431,6 +511,7 @@ function build_job_loc($job)
 	$city = prop_has_value($job, 'municipality') ? ', ' . $job->municipality : '';
 	$state = prop_has_value($job, 'region') ? ', ' . $job->region : '';
 	$country = prop_has_value($job, 'countryCode') ? ', ' . $job->countryCode : '';
+
 	return $job->name . $city . $state . $country;
 }
 
@@ -448,11 +529,16 @@ function build_job_dates($job)
 		}
 		$ret = $startMonth . ' - ' . $endMonth;
 	}
+
 	return $ret;
 }
 
 /**
- * Eduction
+ * Eduction.
+ *
+ * @param mixed $pdf
+ * @param mixed $c
+ * @param mixed $xPos
  */
 function disp_cand_eds($pdf, $c, $xPos = X_INDEX_POS)
 {
@@ -487,14 +573,18 @@ function display_education($ed, $pdf)
 }
 
 /**
- * Certifications
+ * Certifications.
+ *
+ * @param mixed $pdf
+ * @param mixed $c
+ * @param mixed $xPos
  */
 function disp_cand_cert($pdf, $c, $xPos = X_INDEX_POS)
 {
 	if (prop_has_value($c, 'certifications')) {
 		$pdf->SetFont(LABEL_FONT, 'B', LABEL_SIZE);
 		$tmpY = $pdf->GetY();
-		$pdf->MultiCell(32, LN_HEIGHT, "Certifications", 0, 'R');
+		$pdf->MultiCell(32, LN_HEIGHT, 'Certifications', 0, 'R');
 		$tmpY = ($tmpY > $pdf->GetY()) ? $pdf->GetY() - LN_HEIGHT : $tmpY;
 
 		$yPos = $tmpY;
@@ -508,27 +598,20 @@ function disp_cand_cert($pdf, $c, $xPos = X_INDEX_POS)
 }
 
 /**
- * Main Resume build routine
+ * Main Resume build routine.
+ *
+ * @param mixed $pdf
+ * @param mixed $c
+ * @param mixed $tech_skills
+ * @param mixed $layout
  */
-
 function build_resume($pdf, $c, $tech_skills, $layout)
 {
 	setDefaults($pdf, $c);
 	$pdf->AddPage();
 
-	// check for layout GET object
-	$disp_layout = $layout;
-	if (isset($_GET['layout'])) {
-		if ($tmp = json_decode(urldecode($_GET['layout']), true)) {
-			$disp_layout = $tmp;
-		}
-	}
-
-	// var_dump($disp_layout);
-	// die();
-
 	// loop through the layout def and build as defined
-	foreach ($disp_layout['sections'] as $section) {
+	foreach ($layout['sections'] as $section) {
 		display_resume_section($pdf, $c, $tech_skills, $section);
 	}
 }
@@ -539,31 +622,46 @@ function display_resume_section($pdf, $c, $tech_skills, $section)
 		case 'hd':
 			disp_cand_header($pdf, $c);
 			disp_horiz_separator($pdf, true);
+
+			break;
+		case 'ob':
+			disp_cand_objective($pdf, $c, X_INDEX_POS);
+			$pdf->Cell(PAGEWIDTH, 2, '', 0, 1);
+			disp_cand_summary($pdf, $c, X_INDEX_POS);
+
 			break;
 		case 'hi':
 			// candidate highlights
-			disp_cand_highlights($pdf, $c, X_INDEX_POS);
+			$disp = array_key_exists('disp', $section)
+				? $section['disp']
+				: false;
+			disp_cand_highlights($pdf, $c, $disp, X_INDEX_POS);
 			disp_horiz_separator($pdf, false);
+
 			break;
 		case 'ts':
 			// technical skills
 			disp_tech_skills($pdf, $tech_skills, X_INDEX_POS);
 			disp_horiz_separator($pdf, false);
+
 			break;
 		case 'ex':
 			// Experience
 			disp_cand_exp($pdf, $c, X_INDEX_POS);
 			disp_horiz_separator($pdf, false);
+
 			break;
 		case 'ed':
 			// Education & Training
 			disp_cand_eds($pdf, $c, X_INDEX_POS);
 			disp_horiz_separator($pdf, false);
+
 			break;
 		case 'ct':
 			// Certifications
 			disp_cand_cert($pdf, $c, X_INDEX_POS);
 			disp_horiz_separator($pdf, false);
+
 			break;
 	}
 }
