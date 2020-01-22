@@ -425,8 +425,10 @@ function disp_tech_skills($pdf, $tech_skills, $disp, $xPos = X_INDEX_POS)
 		$pdf->SetXY($xPos, $tmpY);
 		// tech skills array uses the id as the key
 		foreach ($disp as $tech_skill_id) {
-			$pdf->setX($xPos);
-			$pdf->Row([$tech_skills[$tech_skill_id]['name'], implode(', ', $tech_skills[$tech_skill_id]['skills'])], LN_HEIGHT);
+			if (array_key_exists($tech_skill_id, $tech_skills)) {
+				$pdf->setX($xPos);
+				$pdf->Row([$tech_skills[$tech_skill_id]['name'], implode(', ', $tech_skills[$tech_skill_id]['skills'])], LN_HEIGHT);
+			}
 		}
 	}
 }
