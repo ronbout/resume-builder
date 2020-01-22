@@ -248,11 +248,26 @@ function disp_horiz_separator($pdf, $display_ln = true, $marginTop = 1, $marginB
 }
 
 /**
- * Display sections.
+ * Select chosen items if custom resume json w disp properties.
  *
- * @param mixed $pdf
- * @param mixed $c
+ * @param mixed $items
+ * @param mixed $disp
  */
+function get_disp_items($items, $disp)
+{
+	if ($disp === false) {
+		$ret_items = $items;
+	} else {
+		$ret_items = [];
+		foreach ($items as $item) {
+			if (($fnd_key = array_search($item->id, $disp)) !== false) {
+				$ret_items[$fnd_key] = $item;
+			}
+		}
+		ksort($ret_items);
+	}
+	return $ret_items;
+}
 
 /**
  * Candidate Header.
@@ -317,29 +332,21 @@ function disp_cand_header($pdf, $c)
  */
 function disp_cand_highlights($pdf, $c, $disp, $xPos = X_INDEX_POS)
 {
-	if (!$disp) {
-		$disp_highlights = $c->candidateHighlights;
-	} else {
-		$disp_highlights = [];
-		foreach ($c->candidateHighlights as $highlight) {
-			if (($fnd_key = array_search($highlight->id, $disp)) !== false) {
-				$disp_highlights[$fnd_key] = $highlight;
-			}
+	if (prop_has_value($c, 'candidateHighlights') && $disp) {
+		$disp_highlights = get_disp_items($c->candidateHighlights, $disp);
+		$yPos = $pdf->getY();
+		$pdf->SetFont(LABEL_FONT, 'B', LABEL_SIZE);
+		$pdf->MultiCell(32, 6, "Professional\nHighlights", 0, 'R');
+
+		$pdf->SetFont('Arial', '', 10);
+
+		foreach ($disp_highlights as $highlight) {
+			$pdf->setXY($xPos, $yPos);
+			$pdf->Cell(5, HILITE_LN_HEIGHT, chr(127), 0, 0, 'L');
+			$pdf->MultiCell(160, HILITE_LN_HEIGHT, trim($highlight->highlight));
+			$yPos = $pdf->getY() + 2;
 		}
-	}
-
-
-	$yPos = $pdf->getY();
-	$pdf->SetFont(LABEL_FONT, 'B', LABEL_SIZE);
-	$pdf->MultiCell(32, 6, "Professional\nHighlights", 0, 'R');
-
-	$pdf->SetFont('Arial', '', 10);
-
-	foreach ($disp_highlights as $highlight) {
-		$pdf->setXY($xPos, $yPos);
-		$pdf->Cell(5, HILITE_LN_HEIGHT, chr(127), 0, 0, 'L');
-		$pdf->MultiCell(160, HILITE_LN_HEIGHT, trim($highlight->highlight));
-		$yPos = $pdf->getY() + 2;
+		disp_horiz_separator($pdf, false);
 	}
 }
 
@@ -352,14 +359,18 @@ function disp_cand_highlights($pdf, $c, $disp, $xPos = X_INDEX_POS)
  */
 function disp_cand_objective($pdf, $c, $xPos = X_INDEX_POS)
 {
-	$yPos = $pdf->getY();
-	$pdf->SetFont(LABEL_FONT, 'B', LABEL_SIZE);
-	$pdf->MultiCell(32, 6, 'Objective', 0, 'R');
+	if (prop_has_value($c, 'objective')) {
+		$yPos = $pdf->getY();
+		$pdf->SetFont(LABEL_FONT, 'B', LABEL_SIZE);
+		$pdf->MultiCell(32, 6, 'Objective', 0, 'R');
 
-	$pdf->SetFont('Arial', '', 10);
+		$pdf->SetFont('Arial', '', 10);
 
-	$pdf->setXY($xPos, $yPos);
-	$pdf->MultiCell(160, LN_HEIGHT, trim($c->objective));
+		$pdf->setXY($xPos, $yPos);
+		$pdf->MultiCell(160, LN_HEIGHT, trim($c->objective));
+
+		$pdf->Cell(PAGEWIDTH, 2, '', 0, 1);
+	}
 }
 
 /**
@@ -371,14 +382,16 @@ function disp_cand_objective($pdf, $c, $xPos = X_INDEX_POS)
  */
 function disp_cand_summary($pdf, $c, $xPos = X_INDEX_POS)
 {
-	$yPos = $pdf->getY();
-	$pdf->SetFont(LABEL_FONT, 'B', LABEL_SIZE);
-	$pdf->MultiCell(32, 6, 'Summary', 0, 'R');
+	if (prop_has_value($c, 'executiveSummary')) {
+		$yPos = $pdf->getY();
+		$pdf->SetFont(LABEL_FONT, 'B', LABEL_SIZE);
+		$pdf->MultiCell(32, 6, 'Summary', 0, 'R');
 
-	$pdf->SetFont('Arial', '', 10);
+		$pdf->SetFont('Arial', '', 10);
 
-	$pdf->setXY($xPos, $yPos);
-	$pdf->MultiCell(160, LN_HEIGHT, trim($c->executiveSummary));
+		$pdf->setXY($xPos, $yPos);
+		$pdf->MultiCell(160, LN_HEIGHT, trim($c->executiveSummary));
+	}
 }
 
 /**
@@ -388,30 +401,33 @@ function disp_cand_summary($pdf, $c, $xPos = X_INDEX_POS)
  * @param mixed $tech_skills
  * @param mixed $xPos
  */
-function disp_tech_skills($pdf, $tech_skills, $xPos = X_INDEX_POS)
+function disp_tech_skills($pdf, $tech_skills, $disp, $xPos = X_INDEX_POS)
 {
-	if ($pdf->getY() > PAGEHEIGHT - 40) {
-		$pdf->addPage();
-		$pdf->Cell(0, 6, '', 0, 1);
-	} else {
-		$pdf->Cell(0, 12, '', 0, 1);
-	}
-	$pdf->SetFont(LABEL_FONT, 'B', LABEL_SIZE);
-	$tmpY = $pdf->GetY();
-	$pdf->MultiCell(32, LN_HEIGHT, "Technical\nSkills", 0, 'R');
-	// in case the page break occurred while printing 'Technical Skills,
-	// must reset the Y loc
-	$tmpY = ($tmpY > $pdf->GetY()) ? $pdf->GetY() - (LN_HEIGHT * 2) : $tmpY;
+	if ($tech_skills && $disp) {
+		if ($pdf->getY() > PAGEHEIGHT - 40) {
+			$pdf->addPage();
+			$pdf->Cell(0, 6, '', 0, 1);
+		} else {
+			$pdf->Cell(0, 12, '', 0, 1);
+		}
+		$pdf->SetFont(LABEL_FONT, 'B', LABEL_SIZE);
+		$tmpY = $pdf->GetY();
+		$pdf->MultiCell(32, LN_HEIGHT, "Technical\nSkills", 0, 'R');
+		// in case the page break occurred while printing 'Technical Skills,
+		// must reset the Y loc
+		$tmpY = ($tmpY > $pdf->GetY()) ? $pdf->GetY() - (LN_HEIGHT * 2) : $tmpY;
 
-	$pdf->SetFont('Arial', '', 10);
-	// using multi-cell table extension to fpdf
-	// first set widths, then send data as array
+		$pdf->SetFont('Arial', '', 10);
+		// using multi-cell table extension to fpdf
+		// first set widths, then send data as array
 
-	$pdf->SetWidths([40, 120]);
-	$pdf->SetXY($xPos, $tmpY);
-	foreach ($tech_skills as $tech_skill) {
-		$pdf->setX($xPos);
-		$pdf->Row([$tech_skill['name'], implode(', ', $tech_skill['skills'])], LN_HEIGHT);
+		$pdf->SetWidths([40, 120]);
+		$pdf->SetXY($xPos, $tmpY);
+		// tech skills array uses the id as the key
+		foreach ($disp as $tech_skill_id) {
+			$pdf->setX($xPos);
+			$pdf->Row([$tech_skills[$tech_skill_id]['name'], implode(', ', $tech_skills[$tech_skill_id]['skills'])], LN_HEIGHT);
+		}
 	}
 }
 
@@ -422,23 +438,30 @@ function disp_tech_skills($pdf, $tech_skills, $xPos = X_INDEX_POS)
  * @param mixed $c
  * @param mixed $xPos
  */
-function disp_cand_exp($pdf, $c, $xPos = X_INDEX_POS)
+function disp_cand_exp($pdf, $c, $disp, $xPos = X_INDEX_POS)
 {
-	$pdf->SetFont(LABEL_FONT, 'B', LABEL_SIZE);
-	$tmpY = $pdf->GetY();
-	$pdf->MultiCell(32, LN_HEIGHT, 'Experience', 0, 'R');
-	$tmpY = ($tmpY > $pdf->GetY()) ? $pdf->GetY() - LN_HEIGHT : $tmpY;
+	if (prop_has_value($c, 'experience') && $disp) {
+		// disp for exp is an array of objects so convert to array of ids
+		$exp_disp = array_column($disp, 'id');
+		$disp_experience = get_disp_items($c->experience, $exp_disp);
+		$pdf->SetFont(LABEL_FONT, 'B', LABEL_SIZE);
+		$tmpY = $pdf->GetY();
+		$pdf->MultiCell(32, LN_HEIGHT, 'Experience', 0, 'R');
+		$tmpY = ($tmpY > $pdf->GetY()) ? $pdf->GetY() - LN_HEIGHT : $tmpY;
 
-	$pdf->SetXY($xPos, $tmpY);
+		$pdf->SetXY($xPos, $tmpY);
 
-	foreach ($c->experience as $job) {
-		display_job($job, $pdf, $xPos);
-		$pdf->Cell(0, 8, '', 0, 1);
+		foreach ($disp_experience as $key => $job) {
+			$job_disp = $disp ? $disp[$key] : false;
+			display_job($job, $pdf, $job_disp, $xPos);
+			$pdf->Cell(0, 8, '', 0, 1);
+		}
+		disp_horiz_separator($pdf, false);
 	}
 }
 
 // Job
-function display_job($job, $pdf, $xPos)
+function display_job($job, $pdf, $job_disp, $xPos)
 {
 	// job title
 	$pdf->setX($xPos);
@@ -465,13 +488,15 @@ function display_job($job, $pdf, $xPos)
 	$pdf->Cell(PAGEWIDTH, 4, '', 0, 2);
 
 	if (prop_has_value($job, 'highlights')) {
+
+		$disp_highlights = get_disp_items($job->highlights, $job_disp['expH']);
 		$pdf->Cell(0, LN_HEIGHT, 'Responsibilities & Achievements', 0, 2);
 		$pdf->Cell(PAGEWIDTH, 2, '', 0, 2);
 
 		$yPos = $pdf->getY();
 		$pdf->SetFont('Arial', '', 10);
 
-		foreach ($job->highlights as $highlight) {
+		foreach ($disp_highlights as $highlight) {
 			$pdf->setXY($xPos, $yPos);
 			$pdf->Cell(5, HILITE_LN_HEIGHT, chr(127), 0, 0, 'L');
 			$pdf->MultiCell(160, HILITE_LN_HEIGHT, trim($highlight->highlight));
@@ -540,9 +565,11 @@ function build_job_dates($job)
  * @param mixed $c
  * @param mixed $xPos
  */
-function disp_cand_eds($pdf, $c, $xPos = X_INDEX_POS)
+function disp_cand_eds($pdf, $c, $disp, $xPos = X_INDEX_POS)
 {
-	if (prop_has_value($c, 'education')) {
+	if (prop_has_value($c, 'education') && $disp) {
+		$disp_education = get_disp_items($c->education, $disp);
+
 		$pdf->SetFont(LABEL_FONT, 'B', LABEL_SIZE);
 		$tmpY = $pdf->GetY();
 		$pdf->MultiCell(32, LN_HEIGHT, "Education\n&Training", 0, 'R');
@@ -550,9 +577,10 @@ function disp_cand_eds($pdf, $c, $xPos = X_INDEX_POS)
 
 		$pdf->SetXY($xPos, $tmpY);
 
-		foreach ($c->education as $ed) {
+		foreach ($disp_education as $ed) {
 			display_education($ed, $pdf);
 		}
+		disp_horiz_separator($pdf, false);
 	}
 }
 
@@ -579,21 +607,23 @@ function display_education($ed, $pdf)
  * @param mixed $c
  * @param mixed $xPos
  */
-function disp_cand_cert($pdf, $c, $xPos = X_INDEX_POS)
+function disp_cand_cert($pdf, $c, $disp, $xPos = X_INDEX_POS)
 {
-	if (prop_has_value($c, 'certifications')) {
+	if (prop_has_value($c, 'certifications') && $disp) {
+		$disp_certifications = get_disp_items($c->certifications, $disp);
 		$pdf->SetFont(LABEL_FONT, 'B', LABEL_SIZE);
 		$tmpY = $pdf->GetY();
 		$pdf->MultiCell(32, LN_HEIGHT, 'Certifications', 0, 'R');
 		$tmpY = ($tmpY > $pdf->GetY()) ? $pdf->GetY() - LN_HEIGHT : $tmpY;
 
 		$yPos = $tmpY;
-		foreach ($c->certifications as $cert) {
+		foreach ($disp_certifications as $cert) {
 			$pdf->setXY($xPos, $yPos);
 			$pdf->Cell(5, LN_HEIGHT, chr(127), 0, 0, 'L');
 			$pdf->MultiCell(160, LN_HEIGHT, trim($cert->name));
 			$yPos = $pdf->getY() + 3;
 		}
+		disp_horiz_separator($pdf, false);
 	}
 }
 
@@ -618,6 +648,10 @@ function build_resume($pdf, $c, $tech_skills, $layout)
 
 function display_resume_section($pdf, $c, $tech_skills, $section)
 {
+	$disp = array_key_exists('disp', $section)
+		? $section['disp']
+		: false;
+
 	switch ($section['name']) {
 		case 'hd':
 			disp_cand_header($pdf, $c);
@@ -626,41 +660,33 @@ function display_resume_section($pdf, $c, $tech_skills, $section)
 			break;
 		case 'ob':
 			disp_cand_objective($pdf, $c, X_INDEX_POS);
-			$pdf->Cell(PAGEWIDTH, 2, '', 0, 1);
 			disp_cand_summary($pdf, $c, X_INDEX_POS);
 
 			break;
 		case 'hi':
 			// candidate highlights
-			$disp = array_key_exists('disp', $section)
-				? $section['disp']
-				: false;
 			disp_cand_highlights($pdf, $c, $disp, X_INDEX_POS);
-			disp_horiz_separator($pdf, false);
 
 			break;
 		case 'ts':
 			// technical skills
-			disp_tech_skills($pdf, $tech_skills, X_INDEX_POS);
+			disp_tech_skills($pdf, $tech_skills, $disp, X_INDEX_POS);
 			disp_horiz_separator($pdf, false);
 
 			break;
 		case 'ex':
 			// Experience
-			disp_cand_exp($pdf, $c, X_INDEX_POS);
-			disp_horiz_separator($pdf, false);
+			disp_cand_exp($pdf, $c, $disp, X_INDEX_POS);
 
 			break;
 		case 'ed':
 			// Education & Training
-			disp_cand_eds($pdf, $c, X_INDEX_POS);
-			disp_horiz_separator($pdf, false);
+			disp_cand_eds($pdf, $c, $disp, X_INDEX_POS);
 
 			break;
 		case 'ct':
 			// Certifications
-			disp_cand_cert($pdf, $c, X_INDEX_POS);
-			disp_horiz_separator($pdf, false);
+			disp_cand_cert($pdf, $c, $disp, X_INDEX_POS);
 
 			break;
 	}
