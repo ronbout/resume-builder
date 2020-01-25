@@ -662,6 +662,9 @@ function display_resume_section($pdf, $c, $tech_skills, $section)
 			break;
 		case 'ob':
 			disp_cand_objective($pdf, $c, X_INDEX_POS);
+
+			break;
+		case 'ps':
 			disp_cand_summary($pdf, $c, X_INDEX_POS);
 
 			break;
