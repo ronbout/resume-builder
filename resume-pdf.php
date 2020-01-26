@@ -482,6 +482,13 @@ function display_job($job, $pdf, $job_disp, $xPos)
 	$pdf->SetFont(LABEL_FONT, '', LABEL_SIZE);
 	$pdf->Cell(110, LN_HEIGHT, build_job_loc($job->company), 0, 1);
 
+	// Job Summary
+	$pdf->SetX($xPos);
+	$pdf->SetTextColor(0);
+	$pdf->SetFont('Arial', '', 10);
+	$pdf->MultiCell(110, HILITE_LN_HEIGHT, $job->summary, 0, 1);
+
+
 	// Job Highlights
 	$pdf->SetFont('Arial', 'U', 10);
 	$pdf->SetTextColor(0);
