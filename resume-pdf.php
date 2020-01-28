@@ -536,7 +536,14 @@ function display_job($job, $pdf, $job_disp, $xPos)
 function build_job_environment($job)
 {
 	$skills = array_column($job->skills, 'name');
+	/**
+	 * loop through highlights and add any that are not already present
+	 */
+	$skills = array_reduce($job->highlights, function ($skillArray, $hi) {
+		return array_merge($skillArray, array_column($hi->skills, 'name'));
+	}, $skills);
 
+	$skills = array_unique(($skills));
 	return implode(', ', $skills);
 }
 
